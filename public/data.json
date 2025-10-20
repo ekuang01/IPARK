@@ -1,0 +1,334 @@
+{
+  "type": "FeatureCollection",
+  "generator": "overpass-turbo",
+  "copyright": "The data included in this document is from www.openstreetmap.org. The data is made available under ODbL.",
+  "timestamp": "2025-10-19T19:20:41Z",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "@id": "way/112689234",
+        "highway": "footway",
+        "layer": "-1",
+        "tunnel": "yes"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            -74.0101833,
+            40.7076465
+          ],
+          [
+            -74.0109536,
+            40.7080753
+          ],
+          [
+            -74.0112287,
+            40.7082385
+          ]
+        ]
+      },
+      "id": "way/112689234"
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "@id": "way/1126410266",
+        "footway": "sidewalk",
+        "highway": "footway",
+        "surface": "concrete"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            -74.0107987,
+            40.7087032
+          ],
+          [
+            -74.0103158,
+            40.7083955
+          ],
+          [
+            -74.0102604,
+            40.7083602
+          ],
+          [
+            -74.0098954,
+            40.7081277
+          ],
+          [
+            -74.0098834,
+            40.70812
+          ]
+        ]
+      },
+      "id": "way/1126410266"
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "@id": "way/1190258203",
+        "footway": "sidewalk",
+        "highway": "footway",
+        "lit": "yes",
+        "surface": "concrete"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            -74.0115991,
+            40.707752
+          ],
+          [
+            -74.0115397,
+            40.7077305
+          ],
+          [
+            -74.0115066,
+            40.7077136
+          ],
+          [
+            -74.0113217,
+            40.7076
+          ],
+          [
+            -74.0110113,
+            40.7074094
+          ],
+          [
+            -74.0107437,
+            40.7072459
+          ],
+          [
+            -74.0107055,
+            40.7072328
+          ]
+        ]
+      },
+      "id": "way/1190258203"
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "@id": "way/1190258204",
+        "footway": "sidewalk",
+        "highway": "footway",
+        "lit": "yes",
+        "surface": "concrete"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            -74.0107524,
+            40.7072375
+          ],
+          [
+            -74.0107437,
+            40.7072459
+          ],
+          [
+            -74.0105089,
+            40.7074718
+          ],
+          [
+            -74.0102871,
+            40.7076983
+          ],
+          [
+            -74.0102752,
+            40.7077023
+          ]
+        ]
+      },
+      "id": "way/1190258204"
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "@id": "way/1190258207",
+        "footway": "sidewalk",
+        "highway": "footway",
+        "surface": "concrete"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            -74.0116042,
+            40.7077465
+          ],
+          [
+            -74.0115991,
+            40.707752
+          ],
+          [
+            -74.0111892,
+            40.708236
+          ]
+        ]
+      },
+      "id": "way/1190258207"
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "@id": "way/1223662474",
+        "footway": "sidewalk",
+        "highway": "footway",
+        "surface": "concrete"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            -74.0102454,
+            40.7077576
+          ],
+          [
+            -74.010234,
+            40.707769
+          ],
+          [
+            -74.0100724,
+            40.7079402
+          ],
+          [
+            -74.0098954,
+            40.7081277
+          ],
+          [
+            -74.009885,
+            40.7081385
+          ]
+        ]
+      },
+      "id": "way/1223662474"
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "@id": "node/11051778415",
+        "barrier": "kerb",
+        "kerb": "lowered",
+        "tactile_paving": "yes",
+        "wheelchair": "yes"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -74.0107524,
+          40.7072375
+        ]
+      },
+      "id": "node/11051778415"
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "@id": "node/11051778482",
+        "barrier": "kerb",
+        "kerb": "lowered",
+        "tactile_paving": "yes",
+        "wheelchair": "yes"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -74.0107055,
+          40.7072328
+        ]
+      },
+      "id": "node/11051778482"
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "@id": "node/11051778484",
+        "barrier": "kerb",
+        "kerb": "lowered",
+        "tactile_paving": "yes",
+        "wheelchair": "yes"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -74.0102752,
+          40.7077023
+        ]
+      },
+      "id": "node/11051778484"
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "@id": "node/11051778501",
+        "barrier": "kerb",
+        "kerb": "flush",
+        "tactile_paving": "no",
+        "wheelchair": "yes"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -74.0116042,
+          40.7077465
+        ]
+      },
+      "id": "node/11051778501"
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "@id": "node/11053134879",
+        "barrier": "kerb",
+        "kerb": "lowered",
+        "tactile_paving": "yes",
+        "wheelchair": "yes"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -74.0102454,
+          40.7077576
+        ]
+      },
+      "id": "node/11053134879"
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "@id": "node/11350133547",
+        "barrier": "kerb",
+        "kerb": "lowered"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -74.009885,
+          40.7081385
+        ]
+      },
+      "id": "node/11350133547"
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "@id": "node/11350133548",
+        "barrier": "kerb",
+        "kerb": "lowered"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -74.0098834,
+          40.70812
+        ]
+      },
+      "id": "node/11350133548"
+    }
+  ]
+}

@@ -1,0 +1,69 @@
+{
+  "models": [
+    {
+      "modelName": "IParkDataModel",
+      "tables": [
+        {
+          "tableName": "WayConfig",
+          "partitionKey": {
+            "attributeName": "wayId",
+            "attributeType": "N"
+          },
+          "sortKey": null,
+          "billingMode": "PAY_PER_REQUEST",
+          "attributes": [
+            { "attributeName": "key", "attributeType": "S" },
+            { "attributeName": "wayId", "attributeType": "N" },
+            { "attributeName": "color", "attributeType": "S" },
+            { "attributeName": "label", "attributeType": "S" },
+            { "attributeName": "value", "attributeType": "N" }
+          ],
+          "items": [
+            {
+              "key": { "S": "wall" },
+              "wayId": { "N": "1190258203" },
+              "color": { "S": "#e74c3c" },
+              "label": { "S": "Wall Street" },
+              "value": { "N": "0" }
+            },
+            {
+              "key": { "S": "nassau" },
+              "wayId": { "N": "1190258204" },
+              "color": { "S": "#f1c40f" },
+              "label": { "S": "Nassau Street" },
+              "value": { "N": "5" }
+            },
+            {
+              "key": { "S": "nassau2" },
+              "wayId": { "N": "1223662474" },
+              "color": { "S": "#e74c3c" },
+              "label": { "S": "Nassau Street 2" },
+              "value": { "N": "0" }
+            },
+            {
+              "key": { "S": "pine" },
+              "wayId": { "N": "112689234" },
+              "color": { "S": "#f39c12" },
+              "label": { "S": "Pine Street" },
+              "value": { "N": "3" }
+            },
+            {
+              "key": { "S": "cedar" },
+              "wayId": { "N": "1126410266" },
+              "color": { "S": "#2ecc71" },
+              "label": { "S": "Cedar Street" },
+              "value": { "N": "30" }
+            },
+            {
+              "key": { "S": "broadway" },
+              "wayId": { "N": "1190258207" },
+              "color": { "S": "#2ecc71" },
+              "label": { "S": "Broadway" },
+              "value": { "N": "30" }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

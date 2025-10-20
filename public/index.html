@@ -1,0 +1,318 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Street Bands — Dynamic DynamoDB (14 Wall St)</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <!-- Leaflet -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+  <!-- Turf.js -->
+  <script src="https://unpkg.com/@turf/turf@6.5.0/turf.min.js"></script>
+
+  <style>
+    html, body, #map { height: 100%; margin: 0; }
+
+    /* Floating number label — readable, centered */
+    .band-label {
+      pointer-events: none;
+      font: 700 16px/1 system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      color: #111;
+      text-shadow:
+        0 1px 0 rgba(255,255,255,0.95),
+        0 0 6px rgba(255,255,255,0.95);
+      transform: translate(-50%, -50%);
+      white-space: nowrap;
+    }
+
+    /* Legend */
+    .legend {
+      position: absolute; z-index: 1000; bottom: 12px; left: 12px;
+      background: rgba(255,255,255,0.92);
+      padding: 8px 10px; border-radius: 8px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+      font: 13px/1.3 system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      max-width: 360px;
+    }
+    .legend .row { display:flex; align-items:center; gap:8px; margin: 4px 0; flex-wrap: wrap; }
+    .legend .swatch { width:14px; height:14px; border-radius:3px; border:1px solid rgba(0,0,0,0.25); }
+
+    /* Buttons */
+    .action-panel {
+      position: absolute; z-index: 1000; bottom: 12px; right: 12px;
+      display: flex; flex-direction: column; gap: 6px;
+    }
+    .action-panel button {
+      background: #007bff; color: #fff; border: none;
+      font-weight: 600; padding: 8px 14px; border-radius: 6px;
+      cursor: pointer; box-shadow: 0 2px 5px rgba(0,0,0,0.15);
+      transition: background 0.2s;
+    }
+    .action-panel button:hover { background: #0056b3; }
+    .action-panel button:disabled { background: #c7c7c7; cursor: not-allowed; }
+  </style>
+</head>
+<body>
+  <div id="map"></div>
+
+  <!-- Legend -->
+  <div class="legend" id="legend"></div>
+
+  <!-- Action buttons -->
+  <div class="action-panel">
+    <button id="iparkBtn">IPark</button>
+    <button id="unparkBtn">Unpark</button>
+    <button id="reportBtn">Report</button>
+  </div>
+
+  <script>
+    // ===========================
+    // 1️⃣ Dynamic config
+    // ===========================
+    let WAY_CONFIG = [];
+
+    async function loadConfig() {
+      const res = await fetch("/config");
+      if (!res.ok) throw new Error(`Failed to load /config: ${res.status}`);
+      const data = await res.json();
+      if (!Array.isArray(data)) throw new Error("Invalid /config format");
+      WAY_CONFIG = data;
+      console.log("✅ Loaded WAY_CONFIG from DynamoDB:", WAY_CONFIG);
+    }
+
+    // ===========================
+    // 2️⃣ Map constants
+    // ===========================
+    const MAP_CENTER = [40.70750, -74.01085];
+    const START_ZOOM = 18;
+    const BUFFER_METERS  = 10;
+    const FILL_OPACITY   = 0.35;
+    const STROKE_WEIGHT  = 1.0;
+    const STROKE_OPACITY = 0.9;
+    const FALLBACK_CENTER = [40.7128, -74.0060];
+    const FALLBACK_ZOOM   = 12;
+
+    // ===========================
+    // 3️⃣ Map setup
+    // ===========================
+    const map = L.map('map', { zoomControl: true }).setView(MAP_CENTER, START_ZOOM);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 20,
+      attribution: '&copy; OpenStreetMap contributors'
+    }).addTo(map);
+    L.marker(MAP_CENTER).addTo(map).bindPopup("14 Wall Street").openPopup();
+
+    // ===========================
+    // 4️⃣ Utility helpers
+    // ===========================
+    async function loadStaticGeoJSON() {
+      const resp = await fetch('data.json');
+      if (!resp.ok) throw new Error(`Failed to load data.json: ${resp.status}`);
+      return resp.json();
+    }
+
+    function getWayIdFromFeature(feat) {
+      const props = feat.properties || {};
+      if (props.osm_id && Number.isFinite(+props.osm_id)) return +props.osm_id;
+      if (props['@id']) {
+        const m = String(props['@id']).match(/way\/(\d+)/i);
+        if (m) return +m[1];
+      }
+      if (typeof feat.id === 'string') {
+        const m2 = feat.id.match(/way\/(\d+)/i);
+        if (m2) return +m2[1];
+      } else if (Number.isFinite(feat.id)) return +feat.id;
+      return NaN;
+    }
+
+    // ===========================
+    // 5️⃣ State management
+    // ===========================
+    const items = {};
+    const legendEls = {};
+    let selectedKey = null;
+
+    function clearSelection() {
+      if (!selectedKey) return;
+      const it = items[selectedKey];
+      if (it?.layer) it.layer.setStyle({ fillOpacity: FILL_OPACITY, weight: STROKE_WEIGHT });
+      selectedKey = null;
+    }
+
+    function setSelected(key) {
+      clearSelection();
+      const it = items[key];
+      if (!it?.layer) return;
+      selectedKey = key;
+      it.layer.setStyle({ fillOpacity: Math.min(0.7, FILL_OPACITY + 0.25), weight: STROKE_WEIGHT + 1.5 });
+      setTimeout(() => {
+        if (selectedKey === key) it.layer.setStyle({ fillOpacity: FILL_OPACITY + 0.15, weight: STROKE_WEIGHT + 0.5 });
+      }, 900);
+    }
+
+    function updateLabel(key, newVal) {
+      const it = items[key];
+      it.value = newVal;
+      if (legendEls[key]) legendEls[key].textContent = String(newVal);
+      if (it.labelMarker) {
+        it.labelMarker.setIcon(L.divIcon({
+          className: 'band-label',
+          html: String(newVal),
+          iconSize: [0, 0]
+        }));
+      }
+    }
+
+    function drawBand(geoLine, key) {
+      const it = items[key];
+      if (!geoLine || !it) return;
+      const bufferKm = BUFFER_METERS / 5000;
+      const buf = turf.buffer(geoLine, bufferKm, { units: 'kilometers', steps: 16 });
+
+      const layer = L.geoJSON(buf, {
+        interactive: true,
+        style: {
+          color: it.color,
+          weight: STROKE_WEIGHT,
+          opacity: STROKE_OPACITY,
+          fillColor: it.color,
+          fillOpacity: FILL_OPACITY
+        }
+      }).addTo(map);
+
+      layer.on('click', () => setSelected(key));
+
+      const center = turf.centerOfMass(buf).geometry.coordinates;
+      const labelMarker = L.marker([center[1], center[0]], {
+        interactive: false,
+        icon: L.divIcon({ className: 'band-label', html: String(it.value), iconSize: [0, 0] })
+      }).addTo(map);
+
+      it.layer = layer;
+      it.labelMarker = labelMarker;
+      it.buffer = buf;
+    }
+
+    // ===========================
+    // 6️⃣ Button handlers (update DynamoDB)
+    // ===========================
+    const iparkBtn  = document.getElementById('iparkBtn');
+    const unparkBtn = document.getElementById('unparkBtn');
+    const reportBtn = document.getElementById('reportBtn');
+
+    async function applyDeltaToSelected(delta) {
+      if (!selectedKey) { alert('Select a street first.'); return; }
+
+      iparkBtn.disabled = true;
+      unparkBtn.disabled = true;
+
+      try {
+        const res = await fetch('/value', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            key: selectedKey,                // e.g. "wall"
+            id: items[selectedKey].id,       // numeric wayId/id
+            wayId: items[selectedKey].id,    // alias, just in case
+            delta
+          })
+        });
+
+        if (!res.ok) {
+          const msg = await res.text().catch(() => "");
+          throw new Error(`Server error ${res.status}: ${msg || res.statusText}`);
+        }
+
+        const updated = await res.json(); // { key, id, color, label, value }
+        updateLabel(selectedKey, Number(updated.value));
+      } catch (err) {
+        console.error("Failed to update value:", err);
+        alert("Failed to update value. See console for details.");
+      } finally {
+        iparkBtn.disabled = false;
+        unparkBtn.disabled = false;
+        clearSelection();
+      }
+    }
+
+    iparkBtn.addEventListener('click', () => applyDeltaToSelected(+1));
+    unparkBtn.addEventListener('click', () => applyDeltaToSelected(-1));
+    reportBtn.addEventListener('click', () => alert("Report clicked (no action yet)."));
+
+    // ===========================
+    // 7️⃣ Main init sequence
+    // ===========================
+    (async function init() {
+      try {
+        await loadConfig();
+        await new Promise(res => map.whenReady(res));
+
+        // Build legend
+        const legendDiv = document.getElementById('legend');
+        legendDiv.innerHTML = [
+          `<div class="row"><strong>Click a band to select, then IPark/Unpark (one action per selection)</strong></div>`,
+          ...WAY_CONFIG.map(cfg => `
+            <div class="row">
+              <span class="swatch" style="background:${cfg.color}"></span>
+              ${cfg.label} (label <span id="${cfg.key}-value">${cfg.value}</span>)
+            </div>
+          `)
+        ].join("");
+
+        WAY_CONFIG.forEach(cfg => {
+          legendEls[cfg.key] = document.getElementById(`${cfg.key}-value`);
+          items[cfg.key] = {
+            id: cfg.id,                // include numeric ID
+            color: cfg.color,
+            value: cfg.value,
+            layer: null,
+            labelMarker: null,
+            buffer: null
+          };
+        });
+
+        // Load static data
+        const data = await loadStaticGeoJSON();
+        const features = data && data.type === 'FeatureCollection' ? (data.features || []) : [];
+        if (!features.length) throw new Error("data.json has no features");
+
+        for (const feat of features) {
+          if (!feat.geometry || !feat.geometry.type) continue;
+          let lineFeature = null;
+
+          if (feat.geometry.type === 'LineString') {
+            lineFeature = turf.lineString(feat.geometry.coordinates, feat.properties || {});
+          } else if (feat.geometry.type === 'MultiLineString') {
+            const fc = turf.featureCollection(feat.geometry.coordinates.map(c => turf.lineString(c, feat.properties || {})));
+            try {
+              lineFeature = turf.lineMerge(fc);
+              if (lineFeature.type !== 'Feature' || lineFeature.geometry.type !== 'LineString') {
+                const candidate = (lineFeature.features || []).find(f => f.geometry?.type === 'LineString');
+                if (candidate) lineFeature = candidate;
+              }
+            } catch {
+              lineFeature = turf.lineString(feat.geometry.coordinates[0], feat.properties || {});
+            }
+          } else continue;
+
+          const wayId = getWayIdFromFeature(feat);
+          if (!Number.isFinite(wayId)) continue;
+          const cfg = WAY_CONFIG.find(c => Number(c.id) === wayId);
+          if (!cfg) continue;
+          drawBand(lineFeature, cfg.key);
+        }
+
+        if (!Object.values(items).some(it => it.layer)) {
+          throw new Error("No matching features for /config way IDs.");
+        }
+      } catch (err) {
+        console.error("[Init] Failed:", err);
+        alert("Failed to load configuration or map data.");
+        map.setView(FALLBACK_CENTER, FALLBACK_ZOOM);
+      }
+    })();
+  </script>
+</body>
+</html>
