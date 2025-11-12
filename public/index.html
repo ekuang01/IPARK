@@ -90,6 +90,129 @@
       background: #c7c7c7;
       cursor: not-allowed;
     }
+
+    /* --- Report Modal --- */
+    .report-overlay {
+      position: absolute;
+      inset: 0;
+      display: none;
+      z-index: 1100;
+      background: rgba(0, 0, 0, 0.25);
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+    }
+
+    .report-modal {
+      width: 100%;
+      max-width: 420px;
+      background: #fff;
+      border-radius: 12px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+      font: 14px/1.4 system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      overflow: hidden;
+      animation: modalIn 140ms ease-out;
+    }
+
+    @keyframes modalIn {
+      from {
+        transform: translateY(10px);
+        opacity: 0;
+      }
+
+      to {
+        transform: translateY(0);
+        opacity: 1;
+      }
+    }
+
+    .report-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 16px;
+      background: #f7f7f9;
+      border-bottom: 1px solid #eee;
+    }
+
+    .report-header h3 {
+      margin: 0;
+      font-size: 16px;
+    }
+
+    .report-close {
+      background: transparent;
+      border: none;
+      font-size: 20px;
+      line-height: 1;
+      cursor: pointer;
+      color: #333;
+    }
+
+    .report-body {
+      padding: 14px 16px;
+    }
+
+    .field {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      margin-bottom: 10px;
+    }
+
+    .field label {
+      font-weight: 600;
+      font-size: 13px;
+    }
+
+    .field input,
+    .field textarea {
+      border: 1px solid #dcdcdc;
+      border-radius: 8px;
+      padding: 10px;
+      font: inherit;
+    }
+
+    .field textarea {
+      min-height: 100px;
+      resize: vertical;
+    }
+
+    .report-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 8px;
+      padding: 12px 16px 16px;
+    }
+
+    .btn-secondary {
+      background: #e9ecef;
+      color: #111;
+      border: none;
+      font-weight: 600;
+      padding: 8px 14px;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+
+    .btn-primary {
+      background: #007bff;
+      color: #fff;
+      border: none;
+      font-weight: 600;
+      padding: 8px 14px;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+
+    .thankyou {
+      padding: 18px 16px;
+      text-align: center;
+      font-weight: 600;
+      color: #155724;
+      background: #e6f4ea;
+      border-top: 1px solid #d3efd9;
+    }
   </style>
 </head>
 
@@ -102,6 +225,46 @@
     <button id="iparkBtn" disabled>IPark</button>
     <button id="unparkBtn" disabled>Unpark</button>
     <button id="reportBtn">Report</button>
+  </div>
+
+  <!-- Report Modal -->
+  <div class="report-overlay" id="reportOverlay" aria-hidden="true">
+    <div class="report-modal" role="dialog" aria-modal="true" aria-labelledby="reportTitle">
+      <div class="report-header">
+        <h3 id="reportTitle">Report an Issue</h3>
+        <button class="report-close" id="reportCloseBtn" aria-label="Close">×</button>
+      </div>
+
+      <form id="reportForm" novalidate>
+        <div class="report-body">
+          <div class="field">
+            <label for="firstName">First Name</label>
+            <input id="firstName" name="firstName" type="text" autocomplete="given-name" required />
+          </div>
+          <div class="field">
+            <label for="lastName">Last Name</label>
+            <input id="lastName" name="lastName" type="text" autocomplete="family-name" required />
+          </div>
+          <div class="field">
+            <label for="email">Email Address</label>
+            <input id="email" name="email" type="email" autocomplete="email" required />
+          </div>
+          <div class="field">
+            <label for="message">Questions/Comments</label>
+            <textarea id="message" name="message" required></textarea>
+          </div>
+        </div>
+
+        <div class="report-actions">
+          <button type="button" class="btn-secondary" id="reportCancelBtn">Cancel</button>
+          <button type="submit" class="btn-primary">Submit</button>
+        </div>
+
+        <div class="thankyou" id="reportThankYou" style="display:none;">
+          Thank you for submitting your request!
+        </div>
+      </form>
+    </div>
   </div>
 
   <script>
@@ -136,7 +299,7 @@
     const STROKE_WEIGHT = 1.0;
     const STROKE_OPACITY = 0.9;
     const FALLBACK_CENTER = [40.7128, -74.0060];
-    const FALLBACK_ZOOM = 12;
+    const FALLBACK_ZOOM = 12; // <-- fixed: was mistakenly "the FALLBACK_ZOOM"
 
     const map = L.map('map', { zoomControl: true }).setView(MAP_CENTER, START_ZOOM);
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -178,6 +341,13 @@
     const iparkBtn = document.getElementById('iparkBtn');
     const unparkBtn = document.getElementById('unparkBtn');
     const reportBtn = document.getElementById('reportBtn');
+
+    // Report modal elements
+    const reportOverlay = document.getElementById('reportOverlay');
+    const reportForm = document.getElementById('reportForm');
+    const reportThankYou = document.getElementById('reportThankYou');
+    const reportCloseBtn = document.getElementById('reportCloseBtn');
+    const reportCancelBtn = document.getElementById('reportCancelBtn');
 
     function setButtonsEnabled(enabled) {
       iparkBtn.disabled = !enabled;
@@ -251,7 +421,7 @@
       const it = items[key];
       if (!geoLine || !it) return;
 
-      const bufferKm = BUFFER_METERS / 1000;
+      const bufferKm = BUFFER_METERS / 5500;
       const buf = turf.buffer(geoLine, bufferKm, { units: 'kilometers', steps: 16 });
 
       const baseColor = colorForValue(it.value);
@@ -329,7 +499,73 @@
 
     document.getElementById('iparkBtn').addEventListener('click', () => applyDeltaToSelected(+1));
     document.getElementById('unparkBtn').addEventListener('click', () => applyDeltaToSelected(-1));
-    document.getElementById('reportBtn').addEventListener('click', () => alert("Report clicked (no action yet)."));
+
+    // --- Report button opens the modal form ---
+    reportBtn.addEventListener('click', () => {
+      reportOverlay.style.display = 'flex';
+      reportOverlay.setAttribute('aria-hidden', 'false');
+      reportThankYou.style.display = 'none';
+      reportForm.reset();
+      const first = document.getElementById('firstName');
+      if (first) first.focus();
+    });
+
+    // Close handlers
+    function closeReport() {
+      reportOverlay.style.display = 'none';
+      reportOverlay.setAttribute('aria-hidden', 'true');
+    }
+    reportCloseBtn.addEventListener('click', closeReport);
+    reportCancelBtn.addEventListener('click', closeReport);
+    reportOverlay.addEventListener('click', (e) => {
+      if (e.target === reportOverlay) closeReport();
+    });
+
+    // Submit handler: send to API then thank the user
+    reportForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+
+      const requiredOk = ['firstName', 'lastName', 'email', 'message'].every(id => {
+        const el = document.getElementById(id);
+        return el && el.value.trim().length > 0;
+      });
+      if (!requiredOk) {
+        alert('Please fill in all fields.');
+        return;
+      }
+
+      const payload = {
+        firstName: document.getElementById('firstName').value.trim(),
+        lastName: document.getElementById('lastName').value.trim(),
+        email: document.getElementById('email').value.trim(),
+        message: document.getElementById('message').value.trim()
+      };
+
+      try {
+        const res = await fetch('https://f5luux96dd.execute-api.us-east-1.amazonaws.com/report', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+
+        if (!res.ok) {
+          const body = await res.json().catch(() => ({}));
+          throw new Error(body.error || `HTTP ${res.status}`);
+        }
+
+        reportThankYou.style.display = 'block';
+        setTimeout(() => {
+          // optional: clear & close modal after visible thank-you
+          reportForm.reset();
+          const evt = new Event('click');
+          document.getElementById('reportCancelBtn').dispatchEvent(evt);
+        }, 1500);
+      } catch (err) {
+        console.error(err);
+        alert('Sorry, we could not send your report. Please try again.');
+      }
+    });
+
 
     // ===========================
     // 7) Init
