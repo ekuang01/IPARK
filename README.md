@@ -116,10 +116,10 @@ A four-person development team from the AWS re/Start Program.
 
 Team Member	Role
 
-- Emily Kuang	Full-Stack Engineer / Lead
-- Daniel Larco	Full-Stack Engineer
-- Brandon Portillo	Cloud Engineer
-- Sana Arshad	Database Engineer
+- Emily Kuang	- Full-Stack Engineer / Lead
+- Daniel Larco - Full-Stack Engineer
+- Brandon Portillo - Cloud Engineer
+- Sana Arshad	- Database Engineer
 
 Team Motto:
 
