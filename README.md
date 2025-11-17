@@ -11,11 +11,8 @@ Drivers often spend unnecessary time circling blocks in search of available park
 iPark solves this by providing:
 
 - A map-based interface showing real-time parking availability
-
 - Color-coded street segments (green/yellow/red) updated by community input
-
 - Serverless issue reporting that alerts administrators instantly
-
 - A fully managed and scalable backend powered by AWS
 
 This project was developed as part of the AWS re/Start Program, demonstrating real-world cloud engineering skills using industry-standard AWS services.
@@ -29,11 +26,8 @@ Frontend Deployment — Elastic Beanstalk
 The main application is hosted on AWS Elastic Beanstalk, which automatically handles:
 
 - EC2 provisioning
-
 - Load balancing
-
 - Auto scaling
-
 - Health monitoring
 
 This allows the team to focus on development rather than infrastructure maintenance.
@@ -43,19 +37,14 @@ Database Layer — DynamoDB
 iPark uses Amazon DynamoDB to store:
 
 - Parking availability data
-
 - Street zone metadata
-
 - Real-time updates from user interactions
 
 Why DynamoDB?
 
 - Low latency
-
 - Serverless and cost-efficient
-
 - Auto-scaling
-
 - Flexible for JSON-style data
 
 Issue Reporting Pipeline — API Gateway → Lambda → SNS
@@ -63,23 +52,18 @@ Issue Reporting Pipeline — API Gateway → Lambda → SNS
 API Gateway
 
 - Acts as the secure entry point for the “Report Issue” form
-
 - Validates and routes incoming requests
-
 - Removes the need to run our own API server
 
 Lambda
 
 - Processes and formats user input
-
 - Performs basic validation
-
 - Runs only when invoked (highly cost-efficient)
 
 SNS
 
 - Sends immediate email notifications to the team
-
 - Offers built-in reliability, retries, and scalability
 
 Security & Access Control — IAM
@@ -87,31 +71,20 @@ Security & Access Control — IAM
 Used to:
 
 - Provide individual AWS accounts for each team member
-
 - Assign least-privilege roles across services
-
 - Allow Beanstalk, Lambda, and other services to interact securely
-
 - Maintain strong cloud security practices
 
 🌐 Key Features
 
 - 🗺️ Interactive map with zoom and street-level detail
-
 - 🎨 Color-coded parking availability (green/yellow/red)
-
 - ➕➖ Increment/Decrement street availability based on user parking actions
-
 - 📝 Report Issue form with serverless backend processing
-
 - 📩 Instant admin notifications via Amazon SNS
-
 - ⚡ Serverless API workflow using API Gateway & Lambda
-
 - 🛢️ DynamoDB-backed real-time data storage
-
 - 🌩️ Scalable deployment on Elastic Beanstalk
-
 - 🔐 Secure IAM roles and team access
 
 🧰 Tech Stack
@@ -119,31 +92,22 @@ Used to:
 Frontend
 
 - HTML / CSS / JavaScript
-
 - Leaflet.js (interactive mapping)
 
 Backend
 
 - Node.js
-
 - AWS Elastic Beanstalk
-
 - AWS Lambda
 
 AWS Services
 
 - Elastic Beanstalk – Application deployment
-
 - DynamoDB – NoSQL database
-
 - API Gateway – API entry point
-
 - Lambda – Serverless compute
-
 - SNS – Email notifications
-
 - IAM – Identity & access management
-
 - CloudWatch – Monitoring and logs
 
 👥 Team MidByte
