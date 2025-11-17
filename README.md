@@ -1,110 +1,166 @@
-📍 About This Project — iPark
+📍 iPark — Cloud-Powered Parking Web App
 
-A serverless, cloud-powered parking web application built by Team MidByte
+Built by Team MidByte | AWS re/Start Program (Per Scholas)
 
-iPark is a community-driven parking management web application designed to make finding, tracking, and managing parking more efficient. Built through the AWS re/Start Program at Per Scholas, this project showcases how modern cloud architecture can transform everyday challenges—like circling endlessly for parking—into smooth, data-driven experiences.
+iPark is a cloud-based, community-driven parking web application designed to simplify how users find, report, and manage parking availability in real time. Built using modern AWS services and serverless architecture, iPark transforms a traditionally frustrating process into a smooth, data-driven experience.
 
-Our team designed iPark to give users real-time visibility into parking availability, allow them to update parking conditions directly on the map, and submit issue reports that notify the team instantly. The result is a scalable, reliable, and easy-to-use system powered entirely by AWS cloud services.
+🚗 Project Overview
 
-🚗 Project Goals
+Drivers often spend unnecessary time circling blocks in search of available parking. There is no free, community-based platform that provides real-time updates or allows users to interact directly with parking data.
 
-- Provide a free, real-time, community-based parking solution
+iPark solves this by providing:
 
-- Reduce wasted time, congestion, and frustration caused by parking guesswork
+- A map-based interface showing real-time parking availability
 
-- Demonstrate how cloud-native architecture can support fast, scalable applications
+- Color-coded street segments (green/yellow/red) updated by community input
 
-- Build a full-stack project using industry-standard AWS services and best practices
+- Serverless issue reporting that alerts administrators instantly
+
+- A fully managed and scalable backend powered by AWS
+
+This project was developed as part of the AWS re/Start Program, demonstrating real-world cloud engineering skills using industry-standard AWS services.
 
 🏗️ Architecture Overview
 
-iPark is built using a blend of AWS managed compute and serverless services, creating a modern architecture that is scalable, cost-efficient, and simple to maintain.
-Frontend Application — Elastic Beanstalk
+iPark is built using a hybrid cloud architecture combining serverless components with managed compute services.
 
-The main web app is deployed on AWS Elastic Beanstalk, which handles provisioning EC2 instances, load balancing, auto scaling, and health monitoring.
-This allowed the team to focus on development without managing servers manually.
-Real-Time Parking Data — DynamoDB
+Frontend Deployment — Elastic Beanstalk
 
-All parking-related information—street availability, counts, color-coded status—is stored in Amazon DynamoDB.
-We chose DynamoDB because it provides:
+The main application is hosted on AWS Elastic Beanstalk, which automatically handles:
 
-- Low-latency reads/writes
+- EC2 provisioning
 
-- Automatic scaling
+- Load balancing
 
-- Serverless, maintenance-free operations
+- Auto scaling
 
-- A natural fit for JSON-style data
+- Health monitoring
 
-Issue Reporting System — API Gateway → Lambda → SNS
+This allows the team to focus on development rather than infrastructure maintenance.
 
-One of iPark’s key features is the user “Report Issue” button. This workflow is fully serverless:
+Database Layer — DynamoDB
+
+iPark uses Amazon DynamoDB to store:
+
+- Parking availability data
+
+- Street zone metadata
+
+- Real-time updates from user interactions
+
+Why DynamoDB?
+
+- Low latency
+
+- Serverless and cost-efficient
+
+- Auto-scaling
+
+- Flexible for JSON-style data
+
+Issue Reporting Pipeline — API Gateway → Lambda → SNS
 
 API Gateway
 
-- Acts as the secure entry point for user-submitted forms
+- Acts as the secure entry point for the “Report Issue” form
 
-- Validates and routes HTTP requests
+- Validates and routes incoming requests
 
-- Eliminates the need to build our own API server
+- Removes the need to run our own API server
 
 Lambda
 
-- Processes and formats incoming report data
+- Processes and formats user input
 
-- Runs only when invoked (cost-efficient, no servers to manage)
+- Performs basic validation
+
+- Runs only when invoked (highly cost-efficient)
 
 SNS
 
-- Immediately notifies the team via email
+- Sends immediate email notifications to the team
 
-- Ensures reliable message delivery with automatic retries and scaling
+- Offers built-in reliability, retries, and scalability
 
-This pipeline creates a lightweight, efficient reporting system with zero server overhead.
 Security & Access Control — IAM
 
-IAM was used throughout the project to:
+Used to:
 
-- Give each team member their own secure AWS account
+- Provide individual AWS accounts for each team member
 
-- Provide least-privilege access across all services
+- Assign least-privilege roles across services
 
-- Assign service roles (e.g., Beanstalk → DynamoDB access)
+- Allow Beanstalk, Lambda, and other services to interact securely
 
-- Maintain consistent security best practices as the architecture expanded
+- Maintain strong cloud security practices
 
 🌐 Key Features
 
-- Interactive map UI with zooming, street-level visualization
+- 🗺️ Interactive map with zoom and street-level detail
 
-- Color-coded parking availability (green/yellow/red) updated in real time
+- 🎨 Color-coded parking availability (green/yellow/red)
 
-- Increment/Decrement controls to mark parking spots as users park or leave
+- ➕➖ Increment/Decrement street availability based on user parking actions
 
-- Report Issue form with instant notifications via AWS SNS
+- 📝 Report Issue form with serverless backend processing
 
-- Fully serverless reporting pipeline
+- 📩 Instant admin notifications via Amazon SNS
 
-- Scalable backend database with DynamoDB
+- ⚡ Serverless API workflow using API Gateway & Lambda
 
-- Zero-downtime deployment through Elastic Beanstalk
+- 🛢️ DynamoDB-backed real-time data storage
 
-- Secure multi-user access through IAM
+- 🌩️ Scalable deployment on Elastic Beanstalk
+
+- 🔐 Secure IAM roles and team access
+
+🧰 Tech Stack
+
+Frontend
+
+- HTML / CSS / JavaScript
+
+- Leaflet.js (interactive mapping)
+
+Backend
+
+- Node.js
+
+- AWS Elastic Beanstalk
+
+- AWS Lambda
+
+AWS Services
+
+- Elastic Beanstalk – Application deployment
+
+- DynamoDB – NoSQL database
+
+- API Gateway – API entry point
+
+- Lambda – Serverless compute
+
+- SNS – Email notifications
+
+- IAM – Identity & access management
+
+- CloudWatch – Monitoring and logs
 
 👥 Team MidByte
 
-This project was built by a four-person team as part of the AWS re/Start program:
+A four-person development team from the AWS re/Start Program.
 
-- Emily Kuang – Full-Stack Engineer / Lead
+Team Member	Role
 
-- Daniel Larco – Full-Stack Engineer
+- Emily Kuang	Full-Stack Engineer / Lead
+- Daniel Larco	Full-Stack Engineer
+- Brandon Portillo	Cloud Engineer
+- Sana Arshad	Database Engineer
 
-- Brandon Portillo – Cloud Engineer
+Team Motto:
 
-- Sana Arshad – Database Engineer
-
-Our team motto:
 “Our impact isn’t measured by team size, but by the progress we build together — one byte at a time.”
 
 📌 Summary
-iPark demonstrates how a small, dedicated team can design and deploy a fully functional cloud application using modern AWS services. From serverless notifications to real-time database updates to automated compute management, this project reflects real-world cloud engineering principles and hands-on full-stack development.
+
+iPark demonstrates how serverless architecture, real-time data, and interactive mapping can come together to solve real community challenges. By leveraging AWS services such as Elastic Beanstalk, DynamoDB, Lambda, API Gateway, SNS, and IAM, our team built a complete cloud-native solution from the ground up.
