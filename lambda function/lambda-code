@@ -1,0 +1,52 @@
+// Lambda handler: publishes form payload to SNS and returns CORS-safe response
+import { SNSClient, PublishCommand } from "@aws-sdk/client-sns";
+
+const sns = new SNSClient({});
+const SNS_TOPIC_ARN = process.env.SNS_TOPIC_ARN;
+const ALLOWED_ORIGIN = process.env.ALLOWED_ORIGIN || "*"; // set your site origin in prod
+
+export const handler = async (event) => {
+    try {
+        const isHttpApi = !!event.requestContext; // API Gateway HTTP API
+        const body = event.body && typeof event.body === "string" ? JSON.parse(event.body) : event;
+
+        const { firstName, lastName, email, message } = body || {};
+        if (![firstName, lastName, email, message].every(v => typeof v === "string" && v.trim())) {
+            return respond(400, { error: "All fields are required." }, ALLOWED_ORIGIN);
+        }
+
+        const subject = `IPARK Report from ${firstName} ${lastName}`;
+        const text = [
+            `New report submitted:`,
+            `First Name: ${firstName}`,
+            `Last Name: ${lastName}`,
+            `Email: ${email}`,
+            `Message:`,
+            message
+        ].join("\n");
+
+        await sns.send(new PublishCommand({
+            TopicArn: SNS_TOPIC_ARN,
+            Subject: subject.slice(0, 100), // SNS subject limit
+            Message: text
+        }));
+
+        return respond(200, { ok: true }, ALLOWED_ORIGIN);
+    } catch (err) {
+        console.error("Publish failed:", err);
+        return respond(500, { error: "Failed to send notification." }, ALLOWED_ORIGIN);
+    }
+};
+
+function respond(statusCode, json, origin) {
+    return {
+        statusCode,
+        headers: {
+            "Content-Type": "application/json",
+            "Access-Control-Allow-Origin": origin,
+            "Access-Control-Allow-Methods": "POST, OPTIONS",
+            "Access-Control-Allow-Headers": "Content-Type"
+        },
+        body: JSON.stringify(json)
+    };
+}
