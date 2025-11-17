@@ -1,8 +1,9 @@
 <!doctype html>
 <html lang="en">
+
 <head>
   <meta charset="utf-8" />
-  <title>Street Bands — Dynamic DynamoDB (14 Wall St)</title>
+  <title>📍 Find it. Pin it. IPARK it.</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
 
   <!-- Leaflet -->
@@ -13,65 +14,271 @@
   <script src="https://unpkg.com/@turf/turf@6.5.0/turf.min.js"></script>
 
   <style>
-    html, body, #map { height: 100%; margin: 0; }
+    html,
+    body,
+    #map {
+      height: 100%;
+      margin: 0;
+    }
 
-    /* Floating number label — readable, centered */
     .band-label {
       pointer-events: none;
       font: 700 16px/1 system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
       color: #111;
       text-shadow:
-        0 1px 0 rgba(255,255,255,0.95),
-        0 0 6px rgba(255,255,255,0.95);
+        0 1px 0 rgba(255, 255, 255, 0.95),
+        0 0 6px rgba(255, 255, 255, 0.95);
       transform: translate(-50%, -50%);
       white-space: nowrap;
     }
 
-    /* Legend */
     .legend {
-      position: absolute; z-index: 1000; bottom: 12px; left: 12px;
-      background: rgba(255,255,255,0.92);
-      padding: 8px 10px; border-radius: 8px;
-      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+      position: absolute;
+      z-index: 1000;
+      bottom: 12px;
+      left: 12px;
+      background: rgba(255, 255, 255, 0.92);
+      padding: 8px 10px;
+      border-radius: 8px;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
       font: 13px/1.3 system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
       max-width: 360px;
     }
-    .legend .row { display:flex; align-items:center; gap:8px; margin: 4px 0; flex-wrap: wrap; }
-    .legend .swatch { width:14px; height:14px; border-radius:3px; border:1px solid rgba(0,0,0,0.25); }
 
-    /* Buttons */
-    .action-panel {
-      position: absolute; z-index: 1000; bottom: 12px; right: 12px;
-      display: flex; flex-direction: column; gap: 6px;
+    .legend .row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin: 4px 0;
+      flex-wrap: wrap;
     }
+
+    .legend .swatch {
+      width: 14px;
+      height: 14px;
+      border-radius: 3px;
+      border: 1px solid rgba(0, 0, 0, 0.25);
+    }
+
+    .action-panel {
+      position: absolute;
+      z-index: 1000;
+      bottom: 12px;
+      right: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
     .action-panel button {
-      background: #007bff; color: #fff; border: none;
-      font-weight: 600; padding: 8px 14px; border-radius: 6px;
-      cursor: pointer; box-shadow: 0 2px 5px rgba(0,0,0,0.15);
+      background: #007bff;
+      color: #fff;
+      border: none;
+      font-weight: 600;
+      padding: 8px 14px;
+      border-radius: 6px;
+      cursor: pointer;
+      box-shadow: 0 2px 5px rgba(0, 0, 0, 0.15);
       transition: background 0.2s;
     }
-    .action-panel button:hover { background: #0056b3; }
-    .action-panel button:disabled { background: #c7c7c7; cursor: not-allowed; }
+
+    .action-panel button:hover {
+      background: #0056b3;
+    }
+
+    .action-panel button:disabled {
+      background: #c7c7c7;
+      cursor: not-allowed;
+    }
+
+    /* --- Report Modal --- */
+    .report-overlay {
+      position: absolute;
+      inset: 0;
+      display: none;
+      z-index: 1100;
+      background: rgba(0, 0, 0, 0.25);
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+    }
+
+    .report-modal {
+      width: 100%;
+      max-width: 420px;
+      background: #fff;
+      border-radius: 12px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+      font: 14px/1.4 system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      overflow: hidden;
+      animation: modalIn 140ms ease-out;
+    }
+
+    @keyframes modalIn {
+      from {
+        transform: translateY(10px);
+        opacity: 0;
+      }
+
+      to {
+        transform: translateY(0);
+        opacity: 1;
+      }
+    }
+
+    .report-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 16px;
+      background: #f7f7f9;
+      border-bottom: 1px solid #eee;
+    }
+
+    .report-header h3 {
+      margin: 0;
+      font-size: 16px;
+    }
+
+    .report-close {
+      background: transparent;
+      border: none;
+      font-size: 20px;
+      line-height: 1;
+      cursor: pointer;
+      color: #333;
+    }
+
+    .report-body {
+      padding: 14px 16px;
+    }
+
+    .field {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      margin-bottom: 10px;
+    }
+
+    .field label {
+      font-weight: 600;
+      font-size: 13px;
+    }
+
+    .field input,
+    .field textarea {
+      border: 1px solid #dcdcdc;
+      border-radius: 8px;
+      padding: 10px;
+      font: inherit;
+    }
+
+    .field textarea {
+      min-height: 100px;
+      resize: vertical;
+    }
+
+    .report-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 8px;
+      padding: 12px 16px 16px;
+    }
+
+    .btn-secondary {
+      background: #e9ecef;
+      color: #111;
+      border: none;
+      font-weight: 600;
+      padding: 8px 14px;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+
+    .btn-primary {
+      background: #007bff;
+      color: #fff;
+      border: none;
+      font-weight: 600;
+      padding: 8px 14px;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+
+    .thankyou {
+      padding: 18px 16px;
+      text-align: center;
+      font-weight: 600;
+      color: #155724;
+      background: #e6f4ea;
+      border-top: 1px solid #d3efd9;
+    }
   </style>
 </head>
+
 <body>
   <div id="map"></div>
 
-  <!-- Legend -->
   <div class="legend" id="legend"></div>
 
-  <!-- Action buttons -->
   <div class="action-panel">
-    <button id="iparkBtn">IPark</button>
-    <button id="unparkBtn">Unpark</button>
+    <button id="iparkBtn" disabled>IPark</button>
+    <button id="unparkBtn" disabled>Unpark</button>
     <button id="reportBtn">Report</button>
+  </div>
+
+  <!-- Report Modal -->
+  <div class="report-overlay" id="reportOverlay" aria-hidden="true">
+    <div class="report-modal" role="dialog" aria-modal="true" aria-labelledby="reportTitle">
+      <div class="report-header">
+        <h3 id="reportTitle">Report an Issue</h3>
+        <button class="report-close" id="reportCloseBtn" aria-label="Close">×</button>
+      </div>
+
+      <form id="reportForm" novalidate>
+        <div class="report-body">
+          <div class="field">
+            <label for="firstName">First Name</label>
+            <input id="firstName" name="firstName" type="text" autocomplete="given-name" required />
+          </div>
+          <div class="field">
+            <label for="lastName">Last Name</label>
+            <input id="lastName" name="lastName" type="text" autocomplete="family-name" required />
+          </div>
+          <div class="field">
+            <label for="email">Email Address</label>
+            <input id="email" name="email" type="email" autocomplete="email" required />
+          </div>
+          <div class="field">
+            <label for="message">Questions/Comments</label>
+            <textarea id="message" name="message" required></textarea>
+          </div>
+        </div>
+
+        <div class="report-actions">
+          <button type="button" class="btn-secondary" id="reportCancelBtn">Cancel</button>
+          <button type="submit" class="btn-primary">Submit</button>
+        </div>
+
+        <div class="thankyou" id="reportThankYou" style="display:none;">
+          Thank you for submitting your request!
+        </div>
+      </form>
+    </div>
   </div>
 
   <script>
     // ===========================
-    // 1️⃣ Dynamic config
+    // 1) Config & color model
     // ===========================
     let WAY_CONFIG = [];
+    const MAX_VALUE = 10;
+
+    function colorForValue(v) {
+      if (v >= 8) return "#e63946";     // red
+      if (v >= 3) return "#f4c430";     // yellow
+      return "#2a9d8f";                 // green
+    }
 
     async function loadConfig() {
       const res = await fetch("/config");
@@ -79,24 +286,21 @@
       const data = await res.json();
       if (!Array.isArray(data)) throw new Error("Invalid /config format");
       WAY_CONFIG = data;
-      console.log("✅ Loaded WAY_CONFIG from DynamoDB:", WAY_CONFIG);
+      console.log("✅ Loaded WAY_CONFIG:", WAY_CONFIG);
     }
 
     // ===========================
-    // 2️⃣ Map constants
+    // 2) Map setup
     // ===========================
     const MAP_CENTER = [40.70750, -74.01085];
     const START_ZOOM = 18;
-    const BUFFER_METERS  = 10;
-    const FILL_OPACITY   = 0.35;
-    const STROKE_WEIGHT  = 1.0;
+    const BUFFER_METERS = 10;
+    const FILL_OPACITY = 0.35;
+    const STROKE_WEIGHT = 1.0;
     const STROKE_OPACITY = 0.9;
     const FALLBACK_CENTER = [40.7128, -74.0060];
-    const FALLBACK_ZOOM   = 12;
+    const FALLBACK_ZOOM = 12; // <-- fixed: was mistakenly "the FALLBACK_ZOOM"
 
-    // ===========================
-    // 3️⃣ Map setup
-    // ===========================
     const map = L.map('map', { zoomControl: true }).setView(MAP_CENTER, START_ZOOM);
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       maxZoom: 20,
@@ -105,7 +309,7 @@
     L.marker(MAP_CENTER).addTo(map).bindPopup("14 Wall Street").openPopup();
 
     // ===========================
-    // 4️⃣ Utility helpers
+    // 3) Helpers
     // ===========================
     async function loadStaticGeoJSON() {
       const resp = await fetch('data.json');
@@ -128,17 +332,46 @@
     }
 
     // ===========================
-    // 5️⃣ State management
+    // 4) State & gates
     // ===========================
-    const items = {};
-    const legendEls = {};
+    const items = {};     // key -> { id, value, layer, labelMarker }
+    const legendEls = {}; // key -> span element for live value
     let selectedKey = null;
+
+    const iparkBtn = document.getElementById('iparkBtn');
+    const unparkBtn = document.getElementById('unparkBtn');
+    const reportBtn = document.getElementById('reportBtn');
+
+    // Report modal elements
+    const reportOverlay = document.getElementById('reportOverlay');
+    const reportForm = document.getElementById('reportForm');
+    const reportThankYou = document.getElementById('reportThankYou');
+    const reportCloseBtn = document.getElementById('reportCloseBtn');
+    const reportCancelBtn = document.getElementById('reportCancelBtn');
+
+    function setButtonsEnabled(enabled) {
+      iparkBtn.disabled = !enabled;
+      unparkBtn.disabled = !enabled;
+    }
+
+    function applyUnparkGate() {
+      if (!selectedKey) { unparkBtn.disabled = true; return; }
+      const it = items[selectedKey];
+      unparkBtn.disabled = !(it && Number(it.value) > 0);
+    }
+
+    function applyParkGate() {
+      if (!selectedKey) { iparkBtn.disabled = true; return; }
+      const it = items[selectedKey];
+      iparkBtn.disabled = !(it && Number(it.value) < MAX_VALUE);
+    }
 
     function clearSelection() {
       if (!selectedKey) return;
       const it = items[selectedKey];
       if (it?.layer) it.layer.setStyle({ fillOpacity: FILL_OPACITY, weight: STROKE_WEIGHT });
       selectedKey = null;
+      setButtonsEnabled(false);
     }
 
     function setSelected(key) {
@@ -150,34 +383,56 @@
       setTimeout(() => {
         if (selectedKey === key) it.layer.setStyle({ fillOpacity: FILL_OPACITY + 0.15, weight: STROKE_WEIGHT + 0.5 });
       }, 900);
+      setButtonsEnabled(true);
+      applyUnparkGate();
+      applyParkGate();
     }
 
     function updateLabel(key, newVal) {
       const it = items[key];
-      it.value = newVal;
-      if (legendEls[key]) legendEls[key].textContent = String(newVal);
+      it.value = Number(newVal);
+
+      if (legendEls[key]) legendEls[key].textContent = String(it.value);
+
       if (it.labelMarker) {
         it.labelMarker.setIcon(L.divIcon({
           className: 'band-label',
-          html: String(newVal),
+          html: String(it.value),
           iconSize: [0, 0]
         }));
       }
+
+      const newColor = colorForValue(it.value);
+      if (it.layer) it.layer.setStyle({ color: newColor, fillColor: newColor });
+
+      const swatch = legendEls[key]?.closest('.row')?.querySelector('.swatch');
+      if (swatch) swatch.style.background = newColor;
+
+      if (selectedKey === key) {
+        applyUnparkGate();
+        applyParkGate();
+      }
     }
 
+    // ===========================
+    // 5) Draw band
+    // ===========================
     function drawBand(geoLine, key) {
       const it = items[key];
       if (!geoLine || !it) return;
-      const bufferKm = BUFFER_METERS / 5000;
+
+      const bufferKm = BUFFER_METERS / 5500;
       const buf = turf.buffer(geoLine, bufferKm, { units: 'kilometers', steps: 16 });
+
+      const baseColor = colorForValue(it.value);
 
       const layer = L.geoJSON(buf, {
         interactive: true,
         style: {
-          color: it.color,
+          color: baseColor,
           weight: STROKE_WEIGHT,
           opacity: STROKE_OPACITY,
-          fillColor: it.color,
+          fillColor: baseColor,
           fillOpacity: FILL_OPACITY
         }
       }).addTo(map);
@@ -192,18 +447,19 @@
 
       it.layer = layer;
       it.labelMarker = labelMarker;
-      it.buffer = buf;
     }
 
     // ===========================
-    // 6️⃣ Button handlers (update DynamoDB)
+    // 6) Button handlers
     // ===========================
-    const iparkBtn  = document.getElementById('iparkBtn');
-    const unparkBtn = document.getElementById('unparkBtn');
-    const reportBtn = document.getElementById('reportBtn');
-
     async function applyDeltaToSelected(delta) {
       if (!selectedKey) { alert('Select a street first.'); return; }
+
+      // Client-side guard: prevent going over MAX
+      if (delta > 0 && Number(items[selectedKey].value) >= MAX_VALUE) {
+        alert(`Street is full (max ${MAX_VALUE}).`);
+        return;
+      }
 
       iparkBtn.disabled = true;
       unparkBtn.disabled = true;
@@ -213,19 +469,23 @@
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            key: selectedKey,                // e.g. "wall"
-            id: items[selectedKey].id,       // numeric wayId/id
-            wayId: items[selectedKey].id,    // alias, just in case
+            key: selectedKey,
+            id: items[selectedKey].id,
             delta
           })
         });
 
         if (!res.ok) {
-          const msg = await res.text().catch(() => "");
-          throw new Error(`Server error ${res.status}: ${msg || res.statusText}`);
+          let msg = `Server error ${res.status}`;
+          try {
+            const body = await res.json();
+            if (body?.error) msg = body.error;
+          } catch { }
+          alert(msg);
+          return;
         }
 
-        const updated = await res.json(); // { key, id, color, label, value }
+        const updated = await res.json(); // { key, id, value }
         updateLabel(selectedKey, Number(updated.value));
       } catch (err) {
         console.error("Failed to update value:", err);
@@ -237,43 +497,108 @@
       }
     }
 
-    iparkBtn.addEventListener('click', () => applyDeltaToSelected(+1));
-    unparkBtn.addEventListener('click', () => applyDeltaToSelected(-1));
-    reportBtn.addEventListener('click', () => alert("Report clicked (no action yet)."));
+    document.getElementById('iparkBtn').addEventListener('click', () => applyDeltaToSelected(+1));
+    document.getElementById('unparkBtn').addEventListener('click', () => applyDeltaToSelected(-1));
+
+    // --- Report button opens the modal form ---
+    reportBtn.addEventListener('click', () => {
+      reportOverlay.style.display = 'flex';
+      reportOverlay.setAttribute('aria-hidden', 'false');
+      reportThankYou.style.display = 'none';
+      reportForm.reset();
+      const first = document.getElementById('firstName');
+      if (first) first.focus();
+    });
+
+    // Close handlers
+    function closeReport() {
+      reportOverlay.style.display = 'none';
+      reportOverlay.setAttribute('aria-hidden', 'true');
+    }
+    reportCloseBtn.addEventListener('click', closeReport);
+    reportCancelBtn.addEventListener('click', closeReport);
+    reportOverlay.addEventListener('click', (e) => {
+      if (e.target === reportOverlay) closeReport();
+    });
+
+    // Submit handler: send to API then thank the user
+    reportForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+
+      const requiredOk = ['firstName', 'lastName', 'email', 'message'].every(id => {
+        const el = document.getElementById(id);
+        return el && el.value.trim().length > 0;
+      });
+      if (!requiredOk) {
+        alert('Please fill in all fields.');
+        return;
+      }
+
+      const payload = {
+        firstName: document.getElementById('firstName').value.trim(),
+        lastName: document.getElementById('lastName').value.trim(),
+        email: document.getElementById('email').value.trim(),
+        message: document.getElementById('message').value.trim()
+      };
+
+      try {
+        const res = await fetch('https://f5luux96dd.execute-api.us-east-1.amazonaws.com/report', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+
+        if (!res.ok) {
+          const body = await res.json().catch(() => ({}));
+          throw new Error(body.error || `HTTP ${res.status}`);
+        }
+
+        reportThankYou.style.display = 'block';
+        setTimeout(() => {
+          // optional: clear & close modal after visible thank-you
+          reportForm.reset();
+          const evt = new Event('click');
+          document.getElementById('reportCancelBtn').dispatchEvent(evt);
+        }, 1500);
+      } catch (err) {
+        console.error(err);
+        alert('Sorry, we could not send your report. Please try again.');
+      }
+    });
+
 
     // ===========================
-    // 7️⃣ Main init sequence
+    // 7) Init
     // ===========================
     (async function init() {
       try {
         await loadConfig();
         await new Promise(res => map.whenReady(res));
 
-        // Build legend
         const legendDiv = document.getElementById('legend');
         legendDiv.innerHTML = [
           `<div class="row"><strong>Click a band to select, then IPark/Unpark (one action per selection)</strong></div>`,
-          ...WAY_CONFIG.map(cfg => `
-            <div class="row">
-              <span class="swatch" style="background:${cfg.color}"></span>
-              ${cfg.label} (label <span id="${cfg.key}-value">${cfg.value}</span>)
-            </div>
-          `)
+          ...WAY_CONFIG.map(cfg => {
+            const col = colorForValue(Number(cfg.value ?? 0));
+            return `
+              <div class="row">
+                <span class="swatch" style="background:${col}"></span>
+                ${cfg.label} (<span id="${cfg.key}-value">${cfg.value}</span>)
+              </div>
+            `;
+          })
         ].join("");
 
         WAY_CONFIG.forEach(cfg => {
           legendEls[cfg.key] = document.getElementById(`${cfg.key}-value`);
           items[cfg.key] = {
-            id: cfg.id,                // include numeric ID
-            color: cfg.color,
-            value: cfg.value,
+            id: cfg.id,
+            value: Number(cfg.value ?? 0),
             layer: null,
-            labelMarker: null,
-            buffer: null
+            labelMarker: null
           };
         });
 
-        // Load static data
         const data = await loadStaticGeoJSON();
         const features = data && data.type === 'FeatureCollection' ? (data.features || []) : [];
         if (!features.length) throw new Error("data.json has no features");
@@ -304,9 +629,6 @@
           drawBand(lineFeature, cfg.key);
         }
 
-        if (!Object.values(items).some(it => it.layer)) {
-          throw new Error("No matching features for /config way IDs.");
-        }
       } catch (err) {
         console.error("[Init] Failed:", err);
         alert("Failed to load configuration or map data.");
@@ -315,4 +637,5 @@
     })();
   </script>
 </body>
+
 </html>

@@ -1,149 +1,96 @@
-
-// library:
+// server.js
+const express = require("express");
+const path = require("path");
+const fs = require("fs").promises;
 const {
   DynamoDBClient,
   ScanCommand,
   UpdateItemCommand,
   DescribeTableCommand,
-  GetItemCommand,
+  PutItemCommand,
 } = require("@aws-sdk/client-dynamodb");
 
-const express = require("express");
-const fs = require("fs").promises;
-const path = require("path");
-
 const app = express();
-const PORT = 3000;
+const PORT = process.env.PORT || 3000;
+const HOST = "0.0.0.0";
+const MAX_VALUE = Number(process.env.MAX_VALUE || 10); // upper cap
+const TABLE_NAME = process.env.TABLE_NAME || "WayConfig";
 
-// Middleware
 app.use(express.json());
-app.use(express.static(path.join(__dirname, "public"))); // serves index.html in /public
+app.use(express.static(path.join(__dirname, "public"))); // serves index.html, data.json, etc.
 
-// below your app.use(...) lines:
-const ddb = new DynamoDBClient({
-  region: "us-east-1",
-  endpoint: "http://localhost:8000",                // DynamoDB Local
-  credentials: { accessKeyId: "dummy", secretAccessKey: "dummy" } // required, ignored locally
-});
+// ---------- DynamoDB client: AWS in prod, local only if DDB_ENDPOINT is set ----------
+const clientConfig = {
+  region: process.env.AWS_REGION || "us-east-1",
+};
 
-// GET /config — returns array shaped like your WAY_CONFIG
-app.get("/config", async (req, res) => {
-  try {
-    const data = await ddb.send(new ScanCommand({ TableName: "WayConfig" }));
-    const items = (data.Items || []).map(i => ({
-      key:    i.key.S,
-      id:     Number(i.wayId.N),     // your "id" (wayId)
-      color:  i.color.S,
-      label:  i.label.S,
-      value:  Number(i.value.N)
-    }));
-    res.json(items);
-  } catch (err) {
-    console.error("Error loading config from DynamoDB:", err);
-    res.status(500).json({ error: "Failed to load config" });
-  }
-});
-
-// Save location
-app.post("/save-location", async (req, res) => {
-  const { id, latitude, longitude } = req.body;
-
-  let data = [];
-  try {
-    const file = await fs.readFile("locations.json", "utf-8");
-    data = JSON.parse(file);
-  } catch {
-    console.log("No existing locations.json, starting fresh.");
-  }
-
-  // Replace existing entry for same user
-  data = data.filter(loc => loc.id !== id);
-  data.push({ id, latitude, longitude, timestamp: new Date().toISOString() });
-
-  await fs.writeFile("locations.json", JSON.stringify(data, null, 2));
-  res.json({ status: "ok" });
-});
-
-// Remove location
-app.post("/remove-location", async (req, res) => {
-  const { id } = req.body;
-
-  let data = [];
-  try {
-    const file = await fs.readFile("locations.json", "utf-8");
-    data = JSON.parse(file);
-  } catch {
-    console.log("No existing locations.json, nothing to remove.");
-  }
-
-  data = data.filter(loc => loc.id !== id);
-  await fs.writeFile("locations.json", JSON.stringify(data, null, 2));
-
-  res.json({ status: "removed" });
-});
-
-// Get all locations
-app.get("/get-locations", async (req, res) => {
-  try {
-    const file = await fs.readFile("locations.json", "utf-8");
-    res.json(JSON.parse(file));
-  } catch {
-    res.json([]);
-  }
-});
-
-// POST /value — increment/decrement a street's value by delta
-
-async function describeKeySchema() {
-  const { Table } = await ddb.send(new DescribeTableCommand({ TableName: "WayConfig" }));
-  // e.g. [{AttributeName:'wayId',KeyType:'HASH'},{AttributeName:'id',KeyType:'RANGE'}]
-  const schema = {};
-  for (const ks of Table.KeySchema) {
-    schema[ks.KeyType] = ks.AttributeName; // HASH -> name, RANGE -> name
-  }
-  // find attribute types (S/N) from AttributeDefinitions
-  const types = {};
-  for (const ad of Table.AttributeDefinitions) {
-    types[ad.AttributeName] = ad.AttributeType; // 'S' | 'N' | 'B'
-  }
-  return { schema, types }; // { schema: {HASH:'...', RANGE:'...'}, types: { attrName:'S'|'N' } }
+if (process.env.DDB_ENDPOINT) {
+  // Local/dev mode (e.g., DynamoDB Local)
+  clientConfig.endpoint = process.env.DDB_ENDPOINT;
+  clientConfig.credentials = {
+    accessKeyId: process.env.AWS_ACCESS_KEY_ID || "dummy",
+    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY || "dummy",
+  };
+  console.log("Using custom DDB endpoint:", clientConfig.endpoint);
+} else {
+  // In AWS: use default credentials provider chain (EB/EC2 instance role)
+  console.log("Using AWS default credentials provider chain (instance role).");
 }
 
-// Build a DynamoDB Key object by trying multiple candidate fields from the request
-function buildKeyObject({ schema, types }, body) {
-  const keyObj = {};
+const ddb = new DynamoDBClient(clientConfig);
 
-  // helper: pick value from body by possible aliases
+// ===== Schema discovery (cached) =====
+let _tableMeta = null;
+async function getTableMeta() {
+  if (_tableMeta) return _tableMeta;
+
+  const { Table } = await ddb.send(
+    new DescribeTableCommand({ TableName: TABLE_NAME })
+  );
+
+  const schema = {};
+  for (const ks of Table.KeySchema) schema[ks.KeyType] = ks.AttributeName; // HASH/RANGE -> name
+  const types = {};
+  for (const ad of Table.AttributeDefinitions) types[ad.AttributeName] = ad.AttributeType; // S/N/B
+
+  _tableMeta = { schema, types };
+  return _tableMeta;
+}
+
+// Build Key object for UpdateItem from request body (key/wayId/id)
+function buildKeyObject(meta, body) {
+  const { schema, types } = meta;
   const pick = (...names) => {
-    for (const n of names) {
-      if (body[n] !== undefined && body[n] !== null && body[n] !== "") return body[n];
-    }
+    for (const n of names)
+      if (body[n] !== undefined && body[n] !== null && body[n] !== "")
+        return body[n];
     return undefined;
   };
 
+  const keyObj = {};
   const hashName = schema.HASH;
-  const rangeName = schema.RANGE; // may be undefined
+  const rangeName = schema.RANGE;
 
-  // try to map known aliases
   const candidates = {
-    wayId: pick("wayId", "id"),      // number
-    id:    pick("id", "wayId"),      // number
-    key:   pick("key"),              // string
+    wayId: pick("wayId", "id"),
+    id: pick("id", "wayId"),
+    key: pick("key"),
   };
 
-  // set HASH
   if (hashName) {
-    const t = types[hashName]; // 'S' or 'N'
-    let v = candidates[hashName] ?? candidates.key ?? candidates.wayId ?? candidates.id;
+    const t = types[hashName]; // 'S' | 'N'
+    let v =
+      candidates[hashName] ?? candidates.key ?? candidates.wayId ?? candidates.id;
     if (v === undefined) return null;
     if (t === "N") v = String(Number(v));
     keyObj[hashName] = t === "S" ? { S: String(v) } : { N: String(v) };
   }
 
-  // set RANGE if present
   if (rangeName) {
     const t = types[rangeName];
-    let v = candidates[rangeName] ?? (rangeName !== hashName ? candidates.id : undefined);
+    let v =
+      candidates[rangeName] ??
+      (rangeName !== hashName ? candidates.id : undefined);
     if (v === undefined) return null;
     if (t === "N") v = String(Number(v));
     keyObj[rangeName] = t === "S" ? { S: String(v) } : { N: String(v) };
@@ -152,84 +99,223 @@ function buildKeyObject({ schema, types }, body) {
   return keyObj;
 }
 
+// ===== Startup seed from public/data.json (safe create-only) =====
+async function extractWayIdsAndNamesFromGeoJSON(filePath) {
+  try {
+    const raw = await fs.readFile(filePath, "utf-8");
+    const gj = JSON.parse(raw);
+    const feats =
+      gj?.type === "FeatureCollection" ? gj.features || [] : [];
+    const results = [];
+
+    for (const f of feats) {
+      const props = f.properties || {};
+      let wayId = NaN;
+
+      if (props.osm_id && Number.isFinite(+props.osm_id)) wayId = +props.osm_id;
+      else if (props["@id"]) {
+        const m = String(props["@id"]).match(/way\/(\d+)/i);
+        if (m) wayId = +m[1];
+      } else if (typeof f.id === "string") {
+        const m2 = f.id.match(/way\/(\d+)/i);
+        if (m2) wayId = +m2[1];
+      } else if (Number.isFinite(f.id)) {
+        wayId = +f.id;
+      }
+
+      if (Number.isFinite(wayId)) {
+        const name = (props.name && String(props.name)) || `Way ${wayId}`;
+        results.push({ wayId, name });
+      }
+    }
+    return results; // [{wayId, name}, ...]
+  } catch (e) {
+    console.warn("Seed: could not read/parse data.json:", e?.message || e);
+    return [];
+  }
+}
+
+async function getExistingWayIds() {
+  const data = await ddb.send(
+    new ScanCommand({
+      TableName: TABLE_NAME,
+      ProjectionExpression: "#wid, #id",
+      ExpressionAttributeNames: { "#wid": "wayId", "#id": "id" },
+    })
+  );
+  const ids = new Set();
+  for (const i of data.Items || []) {
+    const numeric = Number(
+      i.wayId?.N ?? i.id?.N ?? i.id?.S ?? NaN
+    );
+    if (Number.isFinite(numeric)) ids.add(numeric);
+  }
+  return ids;
+}
+
+function buildSeedItem(meta, wayId, label) {
+  const { schema, types } = meta;
+  const item = {
+    // Always include these attributes regardless of PK
+    wayId: { N: String(wayId) },
+    key: { S: `way-${wayId}` },
+    label: { S: label || `Way ${wayId}` },
+    value: { N: "0" },
+  };
+
+  // Ensure PK attributes are present with correct types
+  if (schema.HASH) {
+    const hName = schema.HASH;
+    const hType = types[hName];
+    const hVal = hType === "N" ? String(wayId) : `way-${wayId}`;
+    item[hName] = hType === "N" ? { N: hVal } : { S: hVal };
+  }
+  if (schema.RANGE) {
+    const rName = schema.RANGE;
+    const rType = types[rName];
+    const rVal = rType === "N" ? String(wayId) : `way-${wayId}`;
+    item[rName] = rType === "N" ? { N: rVal } : { S: rVal };
+  }
+
+  return item;
+}
+
+async function seedMissingFromGeoJSON() {
+  const meta = await getTableMeta();
+  const pairs = await extractWayIdsAndNamesFromGeoJSON(
+    path.join(__dirname, "public", "data.json")
+  );
+  if (!pairs.length) {
+    console.log("Seed: no wayIds found in data.json (skip).");
+    return;
+  }
+
+  const existing = await getExistingWayIds();
+  const missing = pairs.filter((p) => !existing.has(p.wayId));
+
+  if (!missing.length) {
+    console.log("Seed: no missing ids (WayConfig already aligned).");
+    return;
+  }
+
+  console.log(`Seed: creating ${missing.length} new WayConfig item(s)...`);
+
+  const hashName = (await getTableMeta()).schema.HASH;
+  const condExpr = `attribute_not_exists(#h)`;
+  const exprNames = { "#h": hashName };
+
+  for (const { wayId, name } of missing) {
+    const Item = buildSeedItem(meta, wayId, name);
+    try {
+      await ddb.send(
+        new PutItemCommand({
+          TableName: TABLE_NAME,
+          Item,
+          ConditionExpression: condExpr,
+          ExpressionAttributeNames: exprNames,
+        })
+      );
+    } catch (e) {
+      // If another process created it, or schema mismatch — skip gracefully
+      console.warn(
+        `Seed: skip wayId=${wayId} ->`,
+        e?.name || e?.message || e
+      );
+    }
+  }
+
+  console.log("Seed: done.");
+}
+
+// Fire-and-forget seeding (server can run even if table starts empty)
+seedMissingFromGeoJSON().catch((err) => console.error("Seed error:", err));
+
+// ===== API =====
+
+// Healthcheck (useful for EB)
+app.get("/health", (req, res) => res.status(200).send("OK"));
+
+// GET /config — return ONLY { key, id, label, value } (no color)
+app.get("/config", async (req, res) => {
+  try {
+    const data = await ddb.send(new ScanCommand({ TableName: TABLE_NAME }));
+    const items = (data.Items || []).map((i) => ({
+      key: i.key?.S ?? i.key?.N ?? null,
+      id: Number(i.wayId?.N ?? i.id?.N ?? i.id?.S ?? 0),
+      label: i.label?.S ?? i.label?.N ?? "",
+      value: Number(i.value?.N ?? 0),
+    }));
+    res.json(items);
+  } catch (err) {
+    console.error("Error loading config:", err);
+    res.status(500).json({ error: "Failed to load config" });
+  }
+});
+
+// POST /value — delta ∈ {+1, -1}; enforce 0..MAX_VALUE; returns { key, id, value }
 app.post("/value", async (req, res) => {
   try {
     const { key, wayId, id, delta } = req.body;
     const d = Number(delta);
-    if (!Number.isInteger(d)) return res.status(400).json({ error: "delta (integer) is required" });
+    if (!Number.isInteger(d) || ![1, -1].includes(d)) {
+      return res.status(400).json({ error: "delta must be +1 or -1" });
+    }
 
-    const meta = await describeKeySchema();
-    let dynamoKey = buildKeyObject(meta, { key, wayId, id });
-    if (!dynamoKey) {
+    const meta = await getTableMeta();
+    const Key = buildKeyObject(meta, { key, wayId, id });
+    if (!Key) {
       return res.status(400).json({
-        error: "Missing required key attributes for this table. Include one or more of: key (string), wayId (number), id (number).",
+        error:
+          "Missing required key attributes for this table. Include one or more of: key (string), wayId (number), id (number).",
       });
     }
 
-    // Try the update with the key(s) we built
-    async function doUpdateWithKey(Key) {
-      const out = await ddb.send(new UpdateItemCommand({
-        TableName: "WayConfig",
-        Key,
-        UpdateExpression: "SET #v = if_not_exists(#v, :zero) + :d",
-        ExpressionAttributeNames: { "#v": "value" },
-        ExpressionAttributeValues: {
-          ":d":    { N: String(d) },
-          ":zero": { N: "0" },
-        },
-        ReturnValues: "ALL_NEW",
-      }));
-      const a = out.Attributes;
-      return {
-        key:   a.key?.S ?? a.key?.N ?? null,
-        id:    Number(a.wayId?.N ?? a.id?.N ?? a.id?.S ?? a.wayId?.S ?? 0),
-        color: a.color?.S ?? null,
-        label: a.label?.S ?? null,
-        value: Number(a.value?.N ?? 0),
-      };
+    const isInc = d > 0;
+
+    const exprValues = {
+      ":d": { N: String(d) }, // +1 or -1
+      ":zero": { N: "0" },
+    };
+
+    let condition;
+    if (isInc) {
+      condition = "(attribute_not_exists(#v) OR #v < :max)"; // allow first set or inc if below max
+      exprValues[":max"] = { N: String(MAX_VALUE) }; // include :max ONLY for increment
+    } else {
+      condition = "(attribute_exists(#v) AND #v > :zero)"; // only dec if value > 0
     }
 
-    try {
-      // 1st attempt with provided IDs
-      const updated = await doUpdateWithKey(dynamoKey);
-      return res.json(updated);
-    } catch (e1) {
-      // If there is a RANGE key and we only provided HASH, try finding the full key by scanning on 'key' string
-      const needsRange = Boolean(meta.schema.RANGE);
-      const providedRange = meta.schema.RANGE && dynamoKey[meta.schema.RANGE];
-      if (needsRange && !providedRange && typeof key === "string") {
-        // find the full item by scanning the 'key' attribute
-        const scan = await ddb.send(new ScanCommand({
-          TableName: "WayConfig",
-          FilterExpression: "#k = :kv",
-          ExpressionAttributeNames: { "#k": "key" },
-          ExpressionAttributeValues: { ":kv": { S: key } },
-          Limit: 1,
-        }));
-        const item = (scan.Items || [])[0];
-        if (item) {
-          // rebuild a proper Key from the found item
-          const correctKey = {};
-          for (const kt of ["HASH", "RANGE"]) {
-            const attr = meta.schema[kt];
-            if (!attr) continue;
-            const type = meta.types[attr]; // 'S' or 'N'
-            const cell = item[attr];
-            if (!cell) continue;
-            correctKey[attr] = type === "S" ? { S: cell.S ?? String(cell.N) } : { N: cell.N ?? String(cell.S) };
-          }
-          const updated = await doUpdateWithKey(correctKey);
-          return res.json(updated);
-        }
-      }
-      throw e1; // rethrow if we couldn't recover
-    }
+    const out = await ddb.send(
+      new UpdateItemCommand({
+        TableName: TABLE_NAME,
+        Key,
+        UpdateExpression: "SET #v = if_not_exists(#v, :zero) + :d",
+        ConditionExpression: condition,
+        ExpressionAttributeNames: { "#v": "value" },
+        ExpressionAttributeValues: exprValues,
+        ReturnValues: "ALL_NEW",
+      })
+    );
+
+    const a = out.Attributes || {};
+    const payload = {
+      key: a.key?.S ?? a.key?.N ?? null,
+      id: Number(a.wayId?.N ?? a.id?.N ?? a.id?.S ?? 0),
+      value: Number(a.value?.N ?? 0),
+    };
+    res.json(payload);
   } catch (err) {
+    if (String(err?.name) === "ConditionalCheckFailedException") {
+      const d = Number(req.body?.delta);
+      return res.status(400).json({
+        error: d > 0 ? `Street is full (max ${MAX_VALUE}).` : "Value cannot go below 0",
+      });
+    }
     console.error("Error updating value:", err);
-    res.status(500).json({ error: "Failed to update value", detail: String(err?.message || err) });
+    res.status(500).json({ error: "Failed to update value" });
   }
 });
 
-app.listen(PORT, () => {
-  console.log(`🚀 Server running at http://localhost:${PORT}`);
+app.listen(PORT, HOST, () => {
+  console.log(`🚀 Server running at http://${HOST}:${PORT}`);
 });

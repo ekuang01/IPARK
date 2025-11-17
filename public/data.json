@@ -2,12 +2,13 @@
   "type": "FeatureCollection",
   "generator": "overpass-turbo",
   "copyright": "The data included in this document is from www.openstreetmap.org. The data is made available under ODbL.",
-  "timestamp": "2025-10-19T19:20:41Z",
+  "timestamp": "2025-10-23T19:38:07Z",
   "features": [
     {
       "type": "Feature",
       "properties": {
         "@id": "way/112689234",
+        "name": "Pine Street",
         "highway": "footway",
         "layer": "-1",
         "tunnel": "yes"
@@ -35,6 +36,7 @@
       "type": "Feature",
       "properties": {
         "@id": "way/1126410266",
+        "name": "Cedar Street",
         "footway": "sidewalk",
         "highway": "footway",
         "surface": "concrete"
@@ -70,6 +72,7 @@
       "type": "Feature",
       "properties": {
         "@id": "way/1190258203",
+        "name": "Wall Street",
         "footway": "sidewalk",
         "highway": "footway",
         "lit": "yes",
@@ -114,6 +117,7 @@
       "type": "Feature",
       "properties": {
         "@id": "way/1190258204",
+        "name": "Nassau Street",
         "footway": "sidewalk",
         "highway": "footway",
         "lit": "yes",
@@ -150,6 +154,7 @@
       "type": "Feature",
       "properties": {
         "@id": "way/1190258207",
+        "name": "Broadway",
         "footway": "sidewalk",
         "highway": "footway",
         "surface": "concrete"
@@ -177,6 +182,7 @@
       "type": "Feature",
       "properties": {
         "@id": "way/1223662474",
+        "name": "Nassau Street 2",
         "footway": "sidewalk",
         "highway": "footway",
         "surface": "concrete"
@@ -207,6 +213,79 @@
         ]
       },
       "id": "way/1223662474"
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "@id": "way/1223662476",
+        "name": "Broadway 2",
+        "footway": "sidewalk",
+        "highway": "footway",
+        "lit": "yes",
+        "surface": "concrete"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            -74.0107968,
+            40.7087186
+          ],
+          [
+            -74.0107987,
+            40.7087032
+          ],
+          [
+            -74.0109588,
+            40.7085102
+          ],
+          [
+            -74.0111298,
+            40.7083039
+          ],
+          [
+            -74.0111402,
+            40.7082917
+          ]
+        ]
+      },
+      "id": "way/1223662476"
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "@id": "node/8262936636",
+        "barrier": "kerb",
+        "kerb": "lowered",
+        "tactile_paving": "yes",
+        "wheelchair": "yes"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -74.0107968,
+          40.7087186
+        ]
+      },
+      "id": "node/8262936636"
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "@id": "node/10301699035",
+        "barrier": "kerb",
+        "kerb": "lowered",
+        "tactile_paving": "yes",
+        "wheelchair": "yes"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -74.0111402,
+          40.7082917
+        ]
+      },
+      "id": "node/10301699035"
     },
     {
       "type": "Feature",
